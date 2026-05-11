@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Fintech Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050811;--surface:#0a0f1e;--card:#0d1426;--border:rgba(99,179,237,0.1);
+  --blue:#3b82f6;--cyan:#06b6d4;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+  --purple:#8b5cf6;--white:#e2e8f0;--muted:#64748b;--glow:rgba(59,130,246,0.15);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--white);font-family:'Space Grotesk',sans-serif;overflow-x:hidden;min-height:100vh}
+
+/* CANVAS BG */
+#bgCanvas{position:fixed;inset:0;z-index:0;opacity:0.6}
+
+/* LAYOUT */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{background:rgba(10,15,30,0.95);border-right:1px solid var(--border);padding:28px 20px;display:flex;flex-direction:column;gap:8px;backdrop-filter:blur(20px);position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:0 8px 28px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--blue),var(--cyan));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;font-family:'Space Mono',monospace}
+.logo-text{font-size:18px;font-weight:700;letter-spacing:2px}
+.logo-text span{color:var(--cyan)}
+.nav-section-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);padding:0 8px;margin:16px 0 6px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;cursor:pointer;transition:all 0.25s;font-size:14px;font-weight:500;color:var(--muted);position:relative}
+.nav-item:hover{background:rgba(59,130,246,0.08);color:var(--white)}
+.nav-item.active{background:rgba(59,130,246,0.12);color:var(--blue)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:var(--blue);border-radius:0 3px 3px 0}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--blue);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--border)}
+.user-card{display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.03)}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.user-name{font-size:13px;font-weight:600}
+.user-role{font-size:11px;color:var(--muted)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);margin-left:auto;box-shadow:0 0 8px var(--green)}
+
+/* MAIN */
+.main{padding:28px 32px;overflow-x:hidden}
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+.top-bar-left h1{font-size:22px;font-weight:700;letter-spacing:-0.5px}
+.top-bar-left p{font-size:13px;color:var(--muted);margin-top:2px}
+.top-bar-right{display:flex;align-items:center;gap:12px}
+.search-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);width:220px;cursor:text;transition:border-color 0.3s}
+.search-bar:hover{border-color:rgba(99,179,237,0.3)}
+.icon-btn{width:40px;height:40px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all 0.25s;position:relative}
+.icon-btn:hover{border-color:var(--blue);background:rgba(59,130,246,0.1)}
+.notif-dot{position:absolute;top:8px;right:8px;width:6px;height:6px;background:var(--red);border-radius:50%;border:1.5px solid var(--bg)}
+
+/* KPI CARDS */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:transform 0.3s,border-color 0.3s;cursor:default}
+.kpi-card:hover{transform:translateY(-3px);border-color:rgba(99,179,237,0.25)}
+.kpi-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.3s}
+.kpi-card:hover::before{opacity:1}
+.kpi-card.c-blue::before{background:radial-gradient(ellipse at top right,rgba(59,130,246,0.08),transparent 60%)}
+.kpi-card.c-green::before{background:radial-gradient(ellipse at top right,rgba(16,185,129,0.08),transparent 60%)}
+.kpi-card.c-purple::before{background:radial-gradient(ellipse at top right,rgba(139,92,246,0.08),transparent 60%)}
+.kpi-card.c-yellow::before{background:radial-gradient(ellipse at top right,rgba(245,158,11,0.08),transparent 60%)}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.kpi-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.kpi-icon.blue{background:rgba(59,130,246,0.15)}
+.kpi-icon.green{background:rgba(16,185,129,0.15)}
+.kpi-icon.purple{background:rgba(139,92,246,0.15)}
+.kpi-icon.yellow{background:rgba(245,158,11,0.15)}
+.kpi-change{font-size:12px;font-weight:600;display:flex;align-items:center;gap:3px;padding:4px 8px;border-radius:100px}
+.kpi-change.up{background:rgba(16,185,129,0.12);color:var(--green)}
+.kpi-change.down{background:rgba(239,68,68,0.12);color:var(--red)}
+.kpi-val{font-family:'Space Mono',monospace;font-size:28px;font-weight:700;letter-spacing:-1px;margin-bottom:4px}
+.kpi-label{font-size:12px;color:var(--muted)}
+.kpi-mini-chart{height:40px;margin-top:12px}
+
+/* GRID LAYOUTS */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.grid-3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.card-title{font-size:15px;font-weight:600}
+.card-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.card-action{font-size:12px;color:var(--blue);cursor:pointer;font-weight:500}
+.chip{font-size:11px;padding:4px 12px;border-radius:100px;font-weight:600}
+.chip-blue{background:rgba(59,130,246,0.1);color:var(--blue);border:1px solid rgba(59,130,246,0.2)}
+.chip-green{background:rgba(16,185,129,0.1);color:var(--green);border:1px solid rgba(16,185,129,0.2)}
+
+/* MAIN CHART */
+#mainChart{width:100%;height:220px}
+
+/* ASSET TABLE */
+.asset-table{width:100%;border-collapse:collapse}
+.asset-table th{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:500;padding:0 0 12px;text-align:left;border-bottom:1px solid var(--border)}
+.asset-table th:last-child,.asset-table td:last-child{text-align:right}
+.asset-table tr:not(:last-child) td{border-bottom:1px solid rgba(255,255,255,0.03)}
+.asset-table td{padding:14px 0;font-size:14px;vertical-align:middle}
+.asset-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;margin-right:10px;flex-shrink:0}
+.asset-name{font-weight:600;font-size:14px}
+.asset-sym{font-size:11px;color:var(--muted);font-family:'Space Mono',monospace}
+.asset-price{font-family:'Space Mono',monospace;font-size:13px}
+.asset-change{font-size:12px;font-weight:600}
+.asset-change.up{color:var(--green)}
+.asset-change.down{color:var(--red)}
+.sparkline{display:inline-block}
+.mini-bar{height:32px}
+.asset-allocation{font-size:12px;color:var(--muted)}
+.alloc-bar{height:4px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:4px;overflow:hidden}
+.alloc-fill{height:100%;border-radius:2px}
+
+/* PORTFOLIO DONUT */
+#donutChart{display:block;margin:0 auto}
+.donut-legend{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.legend-item{display:flex;align-items:center;gap:10px;font-size:13px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.legend-val{margin-left:auto;font-family:'Space Mono',monospace;font-size:12px;color:var(--muted)}
+
+/* ACTIVITY FEED */
+.activity-list{display:flex;flex-direction:column;gap:14px}
+.activity-item{display:flex;align-items:center;gap:12px}
+.activity-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.activity-info{flex:1}
+.activity-title{font-size:13px;font-weight:500}
+.activity-time{font-size:11px;color:var(--muted);margin-top:2px}
+.activity-amount{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;white-space:nowrap}
+.activity-amount.pos{color:var(--green)}
+.activity-amount.neg{color:var(--red)}
+
+/* LIVE TICKER */
+.ticker-wrap{background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.15);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:12px;overflow:hidden;position:relative;margin-bottom:24px}
+.ticker-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--cyan);white-space:nowrap;padding-right:12px;border-right:1px solid var(--border)}
+.ticker-track{display:flex;gap:32px;animation:tickerMove 20s linear infinite;white-space:nowrap}
+.ticker-item{display:flex;align-items:center;gap:6px;font-size:12px;font-family:'Space Mono',monospace}
+.ticker-sym{color:var(--white);font-weight:700}
+.ticker-price{color:var(--muted)}
+.ticker-chg.up{color:var(--green)}
+.ticker-chg.down{color:var(--red)}
+@keyframes tickerMove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.fade-in{animation:fadeUp 0.6s ease both}
+.fade-in-1{animation:fadeUp 0.6s 0.1s ease both}
+.fade-in-2{animation:fadeUp 0.6s 0.2s ease both}
+.fade-in-3{animation:fadeUp 0.6s 0.3s ease both}
+.fade-in-4{animation:fadeUp 0.6s 0.4s ease both}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+@media(max-width:1024px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">N</div>
+      <div class="logo-text">NEX<span>US</span></div>
+    </div>
+    <div class="nav-section-label">Overview</div>
+    <div class="nav-item active"><span class="nav-icon">⬡</span> Dashboard</div>
+    <div class="nav-item"><span class="nav-icon">📈</span> Portfolio</div>
+    <div class="nav-item"><span class="nav-icon">🔄</span> Trade <span class="nav-badge">3</span></div>
+    <div class="nav-item"><span class="nav-icon">⚡</span> Markets</div>
+    <div class="nav-section-label">Manage</div>
+    <div class="nav-item"><span class="nav-icon">💼</span> Assets</div>
+    <div class="nav-item"><span class="nav-icon">🔐</span> Wallet</div>
+    <div class="nav-item"><span class="nav-icon">📊</span> Analytics</div>
+    <div class="nav-item"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge" style="background:var(--red)">5</span></div>
+    <div class="nav-section-label">Account</div>
+    <div class="nav-item"><span class="nav-icon">⚙️</span> Settings</div>
+    <div class="nav-item"><span class="nav-icon">🛡️</span> Security</div>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar">AR</div>
+        <div><div class="user-name">Alex R.</div><div class="user-role">Pro Trader</div></div>
+        <div class="status-dot"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div class="top-bar fade-in">
+      <div class="top-bar-left">
+        <h1>Good Morning, Alex 👋</h1>
+        <p>Markets are open · Last updated just now</p>
+      </div>
+      <div class="top-bar-right">
+        <div class="search-bar">🔍 &nbsp;Search assets...</div>
+        <div class="icon-btn">🔔<div class="notif-dot"></div></div>
+        <div class="icon-btn">⚙️</div>
+        <div class="user-avatar" style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;background:linear-gradient(135deg,#8b5cf6,#3b82f6);cursor:pointer">AR</div>
+      </div>
+    </div>
+
+    <!-- TICKER -->
+    <div class="ticker-wrap fade-in-1">
+      <div class="ticker-label">LIVE</div>
+      <div class="ticker-track" id="ticker"></div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card c-blue fade-in-1">
+        <div class="kpi-top"><div class="kpi-icon blue">💰</div><div class="kpi-change up">▲ 8.24%</div></div>
+        <div class="kpi-val" id="kpi1">$284,391</div>
+        <div class="kpi-label">Total Portfolio Value</div>
+        <canvas class="kpi-mini-chart" id="mini1"></canvas>
+      </div>
+      <div class="kpi-card c-green fade-in-2">
+        <div class="kpi-top"><div class="kpi-icon green">📈</div><div class="kpi-change up">▲ 3.17%</div></div>
+        <div class="kpi-val" style="color:var(--green)">+$21,847</div>
+        <div class="kpi-label">Today's P&L</div>
+        <canvas class="kpi-mini-chart" id="mini2"></canvas>
+      </div>
+      <div class="kpi-card c-purple fade-in-3">
+        <div class="kpi-top"><div class="kpi-icon purple">🔄</div><div class="kpi-change up">▲ 12.4%</div></div>
+        <div class="kpi-val">$1.2M</div>
+        <div class="kpi-label">30d Trading Volume</div>
+        <canvas class="kpi-mini-chart" id="mini3"></canvas>
+      </div>
+      <div class="kpi-card c-yellow fade-in-4">
+        <div class="kpi-top"><div class="kpi-icon yellow">🎯</div><div class="kpi-change down">▼ 2.1%</div></div>
+        <div class="kpi-val">73.4%</div>
+        <div class="kpi-label">Win Rate</div>
+        <canvas class="kpi-mini-chart" id="mini4"></canvas>
+      </div>
+    </div>
+
+    <!-- MAIN CHART + DONUT -->
+    <div class="grid-3 fade-in-2">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Portfolio Performance</div><div class="card-sub">BTC · ETH · SOL · MATIC · Total</div></div>
+          <div style="display:flex;gap:8px">
+            <span class="chip chip-blue" id="activeRange" style="cursor:pointer">7D</span>
+            <span class="chip" style="background:rgba(255,255,255,0.05);color:var(--muted);cursor:pointer" onclick="switchRange(this,'30D')">30D</span>
+            <span class="chip" style="background:rgba(255,255,255,0.05);color:var(--muted);cursor:pointer" onclick="switchRange(this,'90D')">90D</span>
+          </div>
+        </div>
+        <canvas id="mainChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Allocation</div><div class="card-sub">By asset class</div></div>
+          <span class="chip chip-green">Live</span>
+        </div>
+        <canvas id="donutChart" width="160" height="160"></canvas>
+        <div class="donut-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Bitcoin<div class="legend-val">42%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Ethereum<div class="legend-val">28%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div>Solana<div class="legend-val">18%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Others<div class="legend-val">12%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASSETS + ACTIVITY -->
+    <div class="grid-2 fade-in-3">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Top Assets</div><div class="card-sub">Your holdings</div></div>
+          <span class="card-action">View all →</span>
+        </div>
+        <table class="asset-table">
+          <thead><tr><th>Asset</th><th>Price</th><th>24h</th><th>Allocation</th></tr></thead>
+          <tbody id="assetTable"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Recent Activity</div><div class="card-sub">Last 24 hours</div></div>
+          <span class="card-action">History →</span>
+        </div>
+        <div class="activity-list" id="activityList"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── CANVAS BACKGROUND ──
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+let W, H, particles = [];
+
+function resizeBg(){
+  W = bgCanvas.width = window.innerWidth;
+  H = bgCanvas.height = window.innerHeight;
+}
+resizeBg();
+window.addEventListener('resize', resizeBg);
+
+class Particle {
+  constructor(){this.reset()}
+  reset(){
+    this.x = Math.random()*W; this.y = Math.random()*H;
+    this.vx = (Math.random()-0.5)*0.3; this.vy = (Math.random()-0.5)*0.3;
+    this.size = Math.random()*1.5+0.5;
+    this.opacity = Math.random()*0.5+0.1;
+    this.color = ['#3b82f6','#06b6d4','#8b5cf6'][Math.floor(Math.random()*3)];
+  }
+  update(){
+    this.x+=this.vx; this.y+=this.vy;
+    if(this.x<0||this.x>W||this.y<0||this.y>H) this.reset();
+  }
+  draw(){
+    bgCtx.beginPath();
+    bgCtx.arc(this.x,this.y,this.size,0,Math.PI*2);
+    bgCtx.fillStyle=this.color;
+    bgCtx.globalAlpha=this.opacity;
+    bgCtx.fill();
+    bgCtx.globalAlpha=1;
+  }
+}
+
+for(let i=0;i<120;i++) particles.push(new Particle());
+
+function drawConnections(){
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<120){
+        bgCtx.beginPath();
+        bgCtx.moveTo(particles[i].x,particles[i].y);
+        bgCtx.lineTo(particles[j].x,particles[j].y);
+        bgCtx.strokeStyle='rgba(59,130,246,'+(0.12*(1-dist/120))+')';
+        bgCtx.lineWidth=0.5;
+        bgCtx.stroke();
+      }
+    }
+  }
+}
+
+function animateBg(){
+  bgCtx.clearRect(0,0,W,H);
+  particles.forEach(p=>{p.update();p.draw()});
+  drawConnections();
+  requestAnimationFrame(animateBg);
+}
+animateBg();
+
+// ── TICKER ──
+const tickerData = [
+  {sym:'BTC',price:'43,281.50',chg:'+2.34',up:true},
+  {sym:'ETH',price:'2,284.17',chg:'+1.87',up:true},
+  {sym:'SOL',price:'98.42',chg:'+5.12',up:true},
+  {sym:'BNB',price:'312.80',chg:'-0.84',up:false},
+  {sym:'MATIC',price:'0.8821',chg:'+3.41',up:true},
+  {sym:'ADA',price:'0.5124',chg:'-1.23',up:false},
+  {sym:'DOT',price:'7.83',chg:'+0.92',up:true},
+  {sym:'LINK',price:'14.22',chg:'+2.11',up:true},
+];
+const ticker = document.getElementById('ticker');
+const doubled = [...tickerData,...tickerData];
+ticker.innerHTML = doubled.map(t=>`
+  <div class="ticker-item">
+    <span class="ticker-sym">${t.sym}</span>
+    <span class="ticker-price">$${t.price}</span>
+    <span class="ticker-chg ${t.up?'up':'down'}">${t.chg}%</span>
+  </div>`).join('');
+
+// ── MINI CHARTS ──
+function drawMini(id, data, color){
+  const c = document.getElementById(id);
+  if(!c) return;
+  c.width=c.offsetWidth; c.height=40;
+  const ctx=c.getContext('2d');
+  const max=Math.max(...data), min=Math.min(...data);
+  const pts = data.map((v,i)=>({
+    x:(i/(data.length-1))*c.width,
+    y:c.height-((v-min)/(max-min||1))*(c.height-4)-2
+  }));
+  const grad=ctx.createLinearGradient(0,0,0,c.height);
+  grad.addColorStop(0,color+'55');grad.addColorStop(1,color+'00');
+  ctx.beginPath(); ctx.moveTo(pts[0].x,c.height);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.lineTo(pts[pts.length-1].x,c.height);
+  ctx.fillStyle=grad; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+}
+
+const miniData1=[210,195,220,240,215,260,280,295,284];
+const miniData2=[8,12,5,18,14,22,28,24,21];
+const miniData3=[900,1000,850,1100,980,1200,1150,1300,1200];
+const miniData4=[68,71,65,78,74,72,69,75,73];
+
+setTimeout(()=>{
+  drawMini('mini1',miniData1,'#3b82f6');
+  drawMini('mini2',miniData2,'#10b981');
+  drawMini('mini3',miniData3,'#8b5cf6');
+  drawMini('mini4',miniData4,'#f59e0b');
+},100);
+
+// ── MAIN CHART ──
+function drawMainChart(days=7){
+  const c=document.getElementById('mainChart');
+  if(!c) return;
+  c.width=c.offsetWidth; c.height=220;
+  const ctx=c.getContext('2d');
+  const datasets=[
+    {label:'BTC',color:'#3b82f6',data:Array.from({length:days},(_,i)=>40000+Math.sin(i*0.8)*3000+Math.random()*2000)},
+    {label:'ETH',color:'#8b5cf6',data:Array.from({length:days},(_,i)=>2200+Math.sin(i*1.2)*200+Math.random()*150)},
+    {label:'Total',color:'#06b6d4',data:Array.from({length:days},(_,i)=>260000+i*3500+Math.sin(i*0.6)*8000+Math.random()*4000)},
+  ];
+  // Normalize all to 0-1 range using the 'Total' dataset
+  const mainData=datasets[2].data;
+  const max=Math.max(...mainData), min=Math.min(...mainData);
+  const W=c.width, H=c.height;
+  const padL=10, padR=10, padT=10, padB=20;
+  const chartW=W-padL-padR, chartH=H-padT-padB;
+
+  // Grid lines
+  ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=padT+chartH*(i/4);
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();
+  }
+
+  datasets.forEach((ds,di)=>{
+    const d=ds.data;
+    const dMax=Math.max(...d), dMin=Math.min(...d);
+    const pts=d.map((v,i)=>({
+      x:padL+(i/(d.length-1))*chartW,
+      y:padT+chartH-(((v-dMin)/(dMax-dMin||1))*chartH*0.85+chartH*0.05)
+    }));
+    if(di===2){
+      const grad=ctx.createLinearGradient(0,padT,0,H-padB);
+      grad.addColorStop(0,ds.color+'40');grad.addColorStop(1,ds.color+'00');
+      ctx.beginPath();ctx.moveTo(pts[0].x,H-padB);
+      pts.forEach(p=>ctx.lineTo(p.x,p.y));
+      ctx.lineTo(pts[pts.length-1].x,H-padB);
+      ctx.fillStyle=grad;ctx.fill();
+    }
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++){
+      const cp1x=(pts[i-1].x+pts[i].x)/2, cp1y=pts[i-1].y;
+      const cp2x=(pts[i-1].x+pts[i].x)/2, cp2y=pts[i].y;
+      ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,pts[i].x,pts[i].y);
+    }
+    ctx.strokeStyle=ds.color;ctx.lineWidth=di===2?2.5:1.5;
+    ctx.globalAlpha=di===2?1:0.5;ctx.stroke();ctx.globalAlpha=1;
+    // Last point dot
+    const last=pts[pts.length-1];
+    ctx.beginPath();ctx.arc(last.x,last.y,4,0,Math.PI*2);
+    ctx.fillStyle=ds.color;ctx.fill();
+    ctx.beginPath();ctx.arc(last.x,last.y,8,0,Math.PI*2);
+    ctx.fillStyle=ds.color+'30';ctx.fill();
+  });
+}
+
+window.switchRange=function(el,range){
+  document.querySelectorAll('.chip').forEach(c=>{c.className='chip';c.style.background='rgba(255,255,255,0.05)';c.style.color='var(--muted)';});
+  el.className='chip chip-blue';
+  const days={7:7,30:30,'90D':90}[range]||7;
+  drawMainChart(days);
+};
+
+setTimeout(()=>drawMainChart(7),150);
+window.addEventListener('resize',()=>{drawMainChart(7);});
+
+// ── DONUT CHART ──
+function drawDonut(){
+  const c=document.getElementById('donutChart');
+  if(!c)return;
+  const ctx=c.getContext('2d');
+  const cx=80,cy=80,r=65,ir=42;
+  const slices=[
+    {val:42,color:'#3b82f6'},{val:28,color:'#8b5cf6'},
+    {val:18,color:'#06b6d4'},{val:12,color:'#10b981'}
+  ];
+  let start=-Math.PI/2;
+  slices.forEach(s=>{
+    const angle=(s.val/100)*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,start,start+angle);
+    ctx.closePath();ctx.fillStyle=s.color;ctx.fill();
+    start+=angle;
+  });
+  // Inner hole
+  ctx.beginPath();ctx.arc(cx,cy,ir,0,Math.PI*2);
+  ctx.fillStyle='#0d1426';ctx.fill();
+  // Center text
+  ctx.fillStyle='#e2e8f0';ctx.font='700 18px Space Mono';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('$284K',cx,cy-8);
+  ctx.fillStyle='#64748b';ctx.font='500 11px Space Grotesk';
+  ctx.fillText('PORTFOLIO',cx,cy+10);
+}
+setTimeout(drawDonut,200);
+
+// ── ASSET TABLE ──
+const assets=[
+  {icon:'₿',bg:'#f59e0b20',name:'Bitcoin',sym:'BTC',price:'43,281.50',chg:'+2.34',up:true,alloc:42,color:'#3b82f6'},
+  {icon:'Ξ',bg:'#8b5cf620',name:'Ethereum',sym:'ETH',price:'2,284.17',chg:'+1.87',up:true,alloc:28,color:'#8b5cf6'},
+  {icon:'◎',bg:'#06b6d420',name:'Solana',sym:'SOL',price:'98.42',chg:'+5.12',up:true,alloc:18,color:'#06b6d4'},
+  {icon:'●',bg:'#10b98120',name:'Polygon',sym:'MATIC',price:'0.8821',chg:'-0.84',up:false,alloc:12,color:'#10b981'},
+];
+document.getElementById('assetTable').innerHTML=assets.map(a=>`
+  <tr>
+    <td><div style="display:flex;align-items:center">
+      <div class="asset-icon" style="background:${a.bg}">${a.icon}</div>
+      <div><div class="asset-name">${a.name}</div><div class="asset-sym">${a.sym}</div></div>
+    </div></td>
+    <td><div class="asset-price">$${a.price}</div></td>
+    <td><div class="asset-change ${a.up?'up':'down'}">${a.chg}%</div></td>
+    <td><div class="asset-allocation">${a.alloc}%<div class="alloc-bar"><div class="alloc-fill" style="width:${a.alloc}%;background:${a.color}"></div></div></div></td>
+  </tr>`).join('');
+
+// ── ACTIVITY ──
+const activities=[
+  {icon:'📈',bg:'rgba(16,185,129,0.1)',title:'Bought ETH',time:'2 min ago',amount:'+2.40 ETH',pos:true},
+  {icon:'💸',bg:'rgba(239,68,68,0.1)',title:'Sold BTC',time:'14 min ago',amount:'-0.05 BTC',pos:false},
+  {icon:'🔄',bg:'rgba(59,130,246,0.1)',title:'SOL → MATIC Swap',time:'1h ago',amount:'120 SOL',pos:true},
+  {icon:'⚡',bg:'rgba(245,158,11,0.1)',title:'Staking Reward',time:'3h ago',amount:'+$48.20',pos:true},
+  {icon:'📊',bg:'rgba(139,92,246,0.1)',title:'Options Expired',time:'6h ago',amount:'-$280.00',pos:false},
+];
+document.getElementById('activityList').innerHTML=activities.map(a=>`
+  <div class="activity-item">
+    <div class="activity-icon" style="background:${a.bg}">${a.icon}</div>
+    <div class="activity-info"><div class="activity-title">${a.title}</div><div class="activity-time">${a.time}</div></div>
+    <div class="activity-amount ${a.pos?'pos':'neg'}">${a.amount}</div>
+  </div>`).join('');
+
+// ── LIVE KPI PULSE ──
+function pulse(){
+  const el=document.getElementById('kpi1');
+  if(!el)return;
+  const base=284391;
+  const val=base+Math.floor((Math.random()-0.5)*500);
+  el.textContent='$'+val.toLocaleString();
+}
+setInterval(pulse,3000);
+</script>
+</body>
+</html>
