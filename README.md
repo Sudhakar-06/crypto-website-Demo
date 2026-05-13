@@ -4,8 +4,8 @@
 
 Interested in premium fintech or dashboard UI development?
 
-📩 Email: clientforgestudio@gmail.com / sudhakarrali516@gmail.com
-💼 Portfolio: https://netlify/sudhakarportfolio.com
+📩 Email: clientforgestudio@gmail.com / sudhakarrali516@gmail.com   
+💼 Portfolio: https://sudhakar-portfolio06.netlify.app/
 
 ---
 
